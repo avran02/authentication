@@ -1,0 +1,50 @@
+services:
+  mongo:
+    image: mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${DB_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mongo-test-data:/data/test
+    expose:
+      - ${DB_PORT}
+    ports:
+      - ${DB_PORT}:${DB_PORT}
+
+  mongoexpress:
+    image: mongo-express
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${DB_USER}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${DB_PASSWORD}
+      ME_CONFIG_MONGODB_URL: "mongodb://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/"
+      ME_CONFIG_BASICAUTH: "false"
+    depends_on:
+      - mongo
+    restart: always
+    
+
+  auth:
+    build: .
+    depends_on: 
+      - mongo
+    restart: always
+    environment:
+      LOAD_DOT_ENV: "false"
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      SERVER_HOST: ${SERVER_HOST}
+      SERVER_PORT: ${SERVER_PORT}
+      SERVER_LOG_LEVEL: ${SERVER_LOG_LEVEL}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_EXP: ${JWT_ACCESS_EXP}
+      JWT_REFRESH_EXP: ${JWT_REFRESH_EXP}
+    ports:
+      - ${SERVER_PORT}:${SERVER_PORT}
+
+volumes:
+  mongo-test-data: 

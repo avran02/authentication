@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package auth;
+option go_package = "github.com/avran02/pb";
+
+service AuthService {
+    rpc Register (RegisterRequest) returns (RegisterResponse);
+    rpc Login (LoginRequest) returns (LoginResponse);
+    rpc RefreshTokens (RefreshTokenRequest) returns (RefreshTokenResponse);
+    rpc ValidateToken (ValidateTokenRequest) returns (ValidateTokenResponse);
+    rpc Logout (LogoutRequest) returns (LogoutResponse);
+}
+
+message RegisterRequest {
+    string username = 1;
+    string password = 2;
+    string email = 3;
+}
+
+message RegisterResponse {
+    bool success = 1;
+}
+
+message LoginRequest {
+    string username = 1;
+    string password = 2;
+}
+
+message LoginResponse {
+    string accessToken = 1;
+    string refreshToken = 2;
+}
+
+message RefreshTokenRequest {
+    string refreshToken = 1;
+}
+
+message RefreshTokenResponse {
+    string accessToken = 1;
+    string refreshToken = 2;
+}
+
+message ValidateTokenRequest {
+    string accessToken = 1;
+}
+
+message ValidateTokenResponse {
+    string id = 1;
+}
+
+message LogoutRequest {
+    string accessToken = 1;
+}
+
+message LogoutResponse {
+    bool success = 1;
+}
