@@ -84,14 +84,10 @@ func (r *repo) GetRefreshTokenInfo(ctx context.Context, userID string) (string, 
 }
 
 func New(conf *config.DB) Repo {
-	slog.Info("Connecting to database")
 	client := mustConnectDB(conf)
-	slog.Info("client connected")
 	usersCollection := client.Database("auth").Collection("users")
-	slog.Info("usersCollection connected")
 	tokensCollection := client.Database("auth").Collection("tokens")
 
-	slog.Info("Database connected")
 	return &repo{
 		client:           client,
 		userCollection:   usersCollection,

@@ -23,26 +23,30 @@ type controller struct {
 }
 
 func (c *controller) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.RegisterResponse, error) {
-	if err := c.servcie.Register(ctx, req.Email, req.Username, req.Password); err != nil {
+	id, accessToken, refreshToken, err := c.servcie.Register(ctx, req.Username, req.Password, req.Email)
+	if err != nil {
 		slog.Error(err.Error())
 		return nil, fmt.Errorf("failed to register user: %w", err)
 	}
 
 	resp := &pb.RegisterResponse{
-		Success: true,
+		Id:           id,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 	}
 
 	return resp, nil
 }
 
 func (c *controller) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {
-	accessToken, refreshToken, err := c.servcie.Login(ctx, req.Username, req.Password)
+	id, accessToken, refreshToken, err := c.servcie.Login(ctx, req.Username, req.Password)
 	if err != nil {
 		slog.Error(err.Error())
 		return nil, fmt.Errorf("failed to login user: %w", err)
 	}
 
 	return &pb.LoginResponse{
+		Id:           id,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
@@ -81,7 +85,7 @@ func (c *controller) Logout(ctx context.Context, req *pb.LogoutRequest) (*pb.Log
 	}
 
 	return &pb.LogoutResponse{
-		Success: ok,
+		Ok: ok,
 	}, nil
 }
 

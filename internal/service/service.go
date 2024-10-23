@@ -16,8 +16,12 @@ import (
 )
 
 type Service interface {
-	Register(ctx context.Context, email, username, password string) error
-	Login(ctx context.Context, username, password string) (accessToken, refreshToken string, err error)
+	Register(
+		ctx context.Context,
+		username, password string,
+		email *string,
+	) (id, accessToken, refreshToken string, err error)
+	Login(ctx context.Context, username, password string) (id, accessToken, refreshToken string, err error)
 	RefreshTokens(ctx context.Context, token string) (accessToken, refreshToken string, err error)
 	ValidateToken(ctx context.Context, token string) (string, error)
 	Logout(ctx context.Context, token string) (bool, error)
@@ -28,53 +32,73 @@ type service struct {
 	jwt  jwt.Generator
 }
 
-func (s *service) Register(ctx context.Context, email, username, password string) error {
+func (s *service) Register(
+	ctx context.Context,
+	username, password string,
+	email *string,
+) (id, accessToken, refreshToken string, err error) {
 	slog.Info("Registering user: " + username)
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return fmt.Errorf("failed to hash password: %w", err)
+		return "", "", "", fmt.Errorf("failed to hash password: %w", err)
 	}
 
 	user, err := s.repo.FindUserByUsername(ctx, username)
 	if err != nil && !errors.Is(err, repo.ErrUserNotFound) {
-		return fmt.Errorf("failed to find user: %w", err)
+		return "", "", "", fmt.Errorf("failed to find user: %w", err)
 	}
 	if user != nil {
-		return ErrUserAlreadyExists
+		return "", "", "", ErrUserAlreadyExists
 	}
-	return s.repo.CreateUser(ctx, models.User{
-		ID:       uuid.NewString(),
+
+	id = uuid.NewString()
+	if err = s.repo.CreateUser(ctx, models.User{
+		ID:       id,
 		Email:    email,
 		Username: username,
 		Password: string(hashedPassword),
-	})
+	}); err != nil {
+		return "", "", "", fmt.Errorf("failed ti create user: %w", err)
+	}
+
+	// todo: refactor duplicates part of login
+	accessToken, accessTokenID, refreshToken, err := s.jwt.Generate(id)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to generate tokens: %w", err)
+	}
+
+	if err = s.saveRefreshToken(ctx, id, accessTokenID, []byte(refreshToken)); err != nil {
+		return "", "", "", fmt.Errorf("failed to save refresh token: %w", err)
+	}
+
+	return id, accessToken, refreshToken, nil
 }
 
-func (s *service) Login(ctx context.Context, username, password string) (accessToken, refreshToken string, err error) {
+func (s *service) Login(ctx context.Context, username, password string) (id, accessToken, refreshToken string, err error) {
 	slog.Info("Logging in user: " + username)
 	user, err := s.repo.FindUserByUsername(ctx, username)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to find user: %w", err)
+		return "", "", "", fmt.Errorf("failed to find user: %w", err)
 	}
 
 	if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-		return "", "", ErrWrongCredentials
+		return "", "", "", ErrWrongCredentials
 	}
 
 	if err = s.repo.DeleteAllUserTokens(ctx, user.ID); err != nil {
-		return "", "", fmt.Errorf("failed to delete all user tokens: %w", err)
+		return "", "", "", fmt.Errorf("failed to delete all user tokens: %w", err)
 	}
 
 	accessToken, accessTokenID, refreshToken, err := s.jwt.Generate(user.ID)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to generate tokens: %w", err)
+		return "", "", "", fmt.Errorf("failed to generate tokens: %w", err)
 	}
 
 	if err = s.saveRefreshToken(ctx, user.ID, accessTokenID, []byte(refreshToken)); err != nil {
-		return "", "", fmt.Errorf("failed to save refresh token: %w", err)
+		return "", "", "", fmt.Errorf("failed to save refresh token: %w", err)
 	}
 
-	return accessToken, refreshToken, nil
+	return user.ID, accessToken, refreshToken, nil
 }
 
 func (s *service) RefreshTokens(ctx context.Context, refreshTokenStr string) (newAccessToken, newRefreshToken string, err error) {

@@ -14,11 +14,13 @@ service AuthService {
 message RegisterRequest {
     string username = 1;
     string password = 2;
-    string email = 3;
+    optional string email = 3;
 }
 
 message RegisterResponse {
-    bool success = 1;
+    string id = 1;
+    string accessToken = 2;
+    string RefreshToken =3;
 }
 
 message LoginRequest {
@@ -27,8 +29,9 @@ message LoginRequest {
 }
 
 message LoginResponse {
-    string accessToken = 1;
-    string refreshToken = 2;
+    string id = 1;
+    string accessToken = 2;
+    string refreshToken = 3;
 }
 
 message RefreshTokenRequest {
@@ -53,5 +56,5 @@ message LogoutRequest {
 }
 
 message LogoutResponse {
-    bool success = 1;
+    bool ok = 1;
 }
