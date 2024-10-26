@@ -22,7 +22,7 @@ var (
 )
 
 func TestJwtGenerator_Generate(t *testing.T) {
-	accessToken, accessTokenID, refreshToken, err := gen.Generate(userID)
+	accessToken, accessTokenID, refreshToken, _, err := gen.Generate(userID)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, accessToken)
 	assert.NotEmpty(t, refreshToken)
@@ -30,7 +30,7 @@ func TestJwtGenerator_Generate(t *testing.T) {
 }
 
 func TestJwtGenerator_ParseAccessToken(t *testing.T) {
-	accessToken, _, _, err := gen.Generate(userID)
+	accessToken, _, _, _, err := gen.Generate(userID)
 	assert.NoError(t, err)
 
 	claims, err := gen.ParseAccessToken(accessToken)
@@ -55,7 +55,7 @@ func TestJwtGenerator_ParseAccessToken_ExpiredToken(t *testing.T) {
 }
 
 func TestJwtGenerator_ParseRefreshToken(t *testing.T) {
-	_, accessTokenID, refreshToken, err := gen.Generate(userID)
+	_, accessTokenID, refreshToken, _, err := gen.Generate(userID)
 	assert.NoError(t, err)
 
 	claims, err := gen.ParseRefreshToken(refreshToken)

@@ -12,7 +12,7 @@ import (
 )
 
 type Generator interface {
-	Generate(userID string) (accessToken, accessTokenID, refreshToken string, err error)
+	Generate(userID string) (accessToken, accessTokenID, refreshToken string, expTime time.Time, err error)
 	ParseAccessToken(token string) (models.AccessTokenClaims, error)
 	ParseRefreshToken(token string) (models.RefreshTokenClaims, error)
 }
@@ -21,23 +21,23 @@ type jwtGenerator struct {
 	config config.JWT
 }
 
-func (j *jwtGenerator) Generate(userID string) (accessToken, accessTokenID, refreshToken string, err error) {
+func (j *jwtGenerator) Generate(userID string) (accessToken, accessTokenID, refreshToken string, refreshExp time.Time, err error) {
 	slog.Info("pkg.jwt.Generate")
 	accessClaims := j.newAccessClaims(userID)
 	unsignedAccessToken := jwt.NewWithClaims(jwt.SigningMethodHS512, accessClaims)
 	accessToken, err = unsignedAccessToken.SignedString([]byte(j.config.Secret))
 	if err != nil {
-		return "", "", "", fmt.Errorf("pkg.jwt.Generate: failed to sign token: %w", err)
+		return "", "", "", time.Time{}, fmt.Errorf("pkg.jwt.Generate: failed to sign token: %w", err)
 	}
 
-	refreshClaims := j.newRefreshClaims(userID, accessClaims.ID)
+	expTime, refreshClaims := j.newRefreshClaims(userID, accessClaims.ID)
 	unsignedRefreshToken := jwt.NewWithClaims(jwt.SigningMethodHS512, refreshClaims)
 	refreshToken, err = unsignedRefreshToken.SignedString([]byte(j.config.Secret))
 	if err != nil {
-		return "", "", "", fmt.Errorf("pkg.jwt.Generate: failed to sign token: %w", err)
+		return "", "", "", time.Time{}, fmt.Errorf("pkg.jwt.Generate: failed to sign token: %w", err)
 	}
 
-	return accessToken, accessClaims.ID, refreshToken, nil
+	return accessToken, accessClaims.ID, refreshToken, expTime, nil
 }
 
 func (j *jwtGenerator) ParseAccessToken(token string) (models.AccessTokenClaims, error) {
@@ -120,11 +120,12 @@ func (j *jwtGenerator) newAccessClaims(userID string) models.AccessTokenClaims {
 	}
 }
 
-func (j *jwtGenerator) newRefreshClaims(userID, accessTokenID string) models.RefreshTokenClaims {
+func (j *jwtGenerator) newRefreshClaims(userID, accessTokenID string) (time.Time, models.RefreshTokenClaims) {
 	tokenLifetime := time.Duration(j.config.RefreshExp) * time.Second
-	refreshTokenExpiresAt := jwt.NewNumericDate(time.Now().Add(tokenLifetime))
+	expTime := time.Now().Add(tokenLifetime)
+	refreshTokenExpiresAt := jwt.NewNumericDate(expTime)
 
-	return models.RefreshTokenClaims{
+	return expTime, models.RefreshTokenClaims{
 		AccessTokenID: accessTokenID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: refreshTokenExpiresAt,

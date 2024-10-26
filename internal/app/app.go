@@ -1,10 +1,10 @@
 package app
 
 import (
-	"fmt"
 	"log/slog"
-	"net"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/avran02/authentication/internal/config"
 	"github.com/avran02/authentication/internal/controller"
@@ -12,10 +12,7 @@ import (
 	"github.com/avran02/authentication/internal/repo"
 	"github.com/avran02/authentication/internal/server"
 	"github.com/avran02/authentication/internal/service"
-	"github.com/avran02/authentication/pb"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/health"
-	"google.golang.org/grpc/health/grpc_health_v1"
+	"github.com/avran02/authentication/logger"
 )
 
 type App struct {
@@ -25,33 +22,19 @@ type App struct {
 }
 
 func (app *App) Run() {
-	host := fmt.Sprintf("%s:%s", app.config.Server.Host, app.config.Server.Port)
-	slog.Info("Starting gRPC server on " + host)
-	lis, err := net.Listen("tcp", host)
-	if err != nil {
-		slog.Error(fmt.Sprintf("can't listen on %s: \n%s", host, err.Error()))
-		os.Exit(1)
-	}
+	app.server.Run(app.config.Server)
 
-	slog.Info("Listening on " + host)
-	var opts []grpc.ServerOption
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
-	grpcServer := grpc.NewServer(opts...)
-	pb.RegisterAuthServiceServer(grpcServer, app.server)
-
-	healthServer := health.NewServer()
-	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
-	healthServer.SetServingStatus("authservice", grpc_health_v1.HealthCheckResponse_SERVING)
-
-	slog.Info("Starting gRPC server")
-	if err = grpcServer.Serve(lis); err != nil {
-		slog.Error(fmt.Sprintf("can't start grpc server: \n%s", err.Error()))
-		os.Exit(1)
-	}
+	sig := <-signals
+	slog.Info("shutdown server", "signal", sig.String())
+	os.Exit(0)
 }
 
 func New() *App {
 	config := config.New()
+	logger.Setup(config.Server)
 
 	repo := repo.New(&config.DB)
 	JWTGenerator := jwt.NewJwtGenerator(config.JWT)

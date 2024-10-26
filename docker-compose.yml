@@ -27,6 +27,7 @@ services:
     
 
   auth:
+    image: avran/authentication:v0.3
     build: .
     depends_on: 
       - mongo
@@ -37,14 +38,18 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT}
+      SERVER_HTTP_PORT: ${SERVER_HTTP_PORT}
+      SERVER_GRPC_PORT: ${SERVER_GRPC_PORT}
       SERVER_HOST: ${SERVER_HOST}
-      SERVER_PORT: ${SERVER_PORT}
       SERVER_LOG_LEVEL: ${SERVER_LOG_LEVEL}
       JWT_SECRET: ${JWT_SECRET}
       JWT_ACCESS_EXP: ${JWT_ACCESS_EXP}
       JWT_REFRESH_EXP: ${JWT_REFRESH_EXP}
+    expose:
+      - ${SERVER_GRPC_PORT}
     ports:
-      - ${SERVER_PORT}:${SERVER_PORT}
+      # - ${SERVER_GRPC_PORT}:${SERVER_GRPC_PORT}
+      - ${SERVER_HTTP_PORT}:${SERVER_HTTP_PORT}
 
 volumes:
   mongo-test-data: 

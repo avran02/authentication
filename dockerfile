@@ -1,4 +1,4 @@
-FROM golang:latest AS builder
+FROM golang AS builder
 
 WORKDIR /app
 
@@ -12,7 +12,7 @@ ENV CGO_ENABLED=0
 
 RUN go build -o auth-service .
 
-FROM alpine:latest
+FROM alpine
 
 WORKDIR /app
 

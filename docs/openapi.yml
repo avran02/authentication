@@ -1,0 +1,200 @@
+openapi: 3.0.0
+info:
+  title: Auth Service API
+  version: 1.0.0
+  description: API для аутентификации и управления пользователями
+
+paths:
+  /register:
+    post:
+      tags:
+        - auth
+      summary: Регистрация нового пользователя
+      description: Создает нового пользователя и возвращает токены.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  description: Имя пользователя
+                  example: "john_doe"
+                password:
+                  type: string
+                  description: Пароль пользователя
+                  example: "password123"
+                email:
+                  type: string
+                  format: email
+                  description: Email пользователя (опционально)
+                  example: "user@example.com"
+              required:
+                - username
+                - password
+      responses:
+        '201':
+          description: Успешная регистрация пользователя
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    example: "user123"
+                  accessToken:
+                    type: string
+                    example: "access_token_here"
+                  refreshToken:
+                    type: string
+                    example: "refresh_token_here"
+        '400':
+          description: Ошибка валидации данных
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid input data"
+
+  /login:
+    post:
+      tags:
+        - auth
+      summary: Аутентификация пользователя
+      description: Возвращает токены доступа при успешной аутентификации.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  description: Имя пользователя
+                  example: "john_doe"
+                password:
+                  type: string
+                  description: Пароль пользователя
+                  example: "password123"
+              required:
+                - username
+                - password
+      responses:
+        '200':
+          description: Успешная аутентификация
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    example: "user123"
+                  accessToken:
+                    type: string
+                    example: "access_token_here"
+                  refreshToken:
+                    type: string
+                    example: "refresh_token_here"
+        '401':
+          description: Неверные учетные данные
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid username or password"
+
+  /refresh-tokens:
+    post:
+      tags:
+        - auth
+      summary: Обновление токенов
+      description: Возвращает новые токены доступа и обновления при предоставлении действительного refreshToken.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+                  description: Токен обновления
+                  example: "refresh_token_here"
+              required:
+                - refreshToken
+      responses:
+        '200':
+          description: Успешное обновление токенов
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                    example: "new_access_token_here"
+                  refreshToken:
+                    type: string
+                    example: "new_refresh_token_here"
+        '401':
+          description: Неверный или просроченный refreshToken
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Invalid or expired refresh token"
+
+  /logout:
+    post:
+      tags:
+        - auth
+      summary: Выход пользователя
+      description: Завершает сеанс пользователя и аннулирует токен доступа.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                accessToken:
+                  type: string
+                  description: Токен доступа пользователя
+                  example: "access_token_here"
+              required:
+                - accessToken
+      responses:
+        '200':
+          description: Успешный выход
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+        '401':
+          description: Неавторизованный
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Authentication required"

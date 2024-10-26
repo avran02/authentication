@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/avran02/authentication/internal/models"
 	"github.com/avran02/authentication/internal/pkg/jwt"
@@ -20,9 +21,9 @@ type Service interface {
 		ctx context.Context,
 		username, password string,
 		email *string,
-	) (id, accessToken, refreshToken string, err error)
-	Login(ctx context.Context, username, password string) (id, accessToken, refreshToken string, err error)
-	RefreshTokens(ctx context.Context, token string) (accessToken, refreshToken string, err error)
+	) (id, accessToken, refreshToken string, expTime time.Time, err error)
+	Login(ctx context.Context, username, password string) (id, accessToken, refreshToken string, expTime time.Time, err error)
+	RefreshTokens(ctx context.Context, token string) (accessToken, refreshToken string, expTime time.Time, err error)
 	ValidateToken(ctx context.Context, token string) (string, error)
 	Logout(ctx context.Context, token string) (bool, error)
 }
@@ -36,19 +37,19 @@ func (s *service) Register(
 	ctx context.Context,
 	username, password string,
 	email *string,
-) (id, accessToken, refreshToken string, err error) {
+) (id, accessToken, refreshToken string, expTime time.Time, err error) {
 	slog.Info("Registering user: " + username)
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to hash password: %w", err)
+		return "", "", "", time.Time{}, fmt.Errorf("failed to hash password: %w", err)
 	}
 
 	user, err := s.repo.FindUserByUsername(ctx, username)
 	if err != nil && !errors.Is(err, repo.ErrUserNotFound) {
-		return "", "", "", fmt.Errorf("failed to find user: %w", err)
+		return "", "", "", time.Time{}, fmt.Errorf("failed to find user: %w", err)
 	}
 	if user != nil {
-		return "", "", "", ErrUserAlreadyExists
+		return "", "", "", time.Time{}, ErrUserAlreadyExists
 	}
 
 	id = uuid.NewString()
@@ -58,87 +59,87 @@ func (s *service) Register(
 		Username: username,
 		Password: string(hashedPassword),
 	}); err != nil {
-		return "", "", "", fmt.Errorf("failed ti create user: %w", err)
+		return "", "", "", time.Time{}, fmt.Errorf("failed ti create user: %w", err)
 	}
 
 	// todo: refactor duplicates part of login
-	accessToken, accessTokenID, refreshToken, err := s.jwt.Generate(id)
+	accessToken, accessTokenID, refreshToken, expTime, err := s.jwt.Generate(id)
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to generate tokens: %w", err)
+		return "", "", "", time.Time{}, fmt.Errorf("failed to generate tokens: %w", err)
 	}
 
 	if err = s.saveRefreshToken(ctx, id, accessTokenID, []byte(refreshToken)); err != nil {
-		return "", "", "", fmt.Errorf("failed to save refresh token: %w", err)
+		return "", "", "", time.Time{}, fmt.Errorf("failed to save refresh token: %w", err)
 	}
 
-	return id, accessToken, refreshToken, nil
+	return id, accessToken, refreshToken, expTime, nil
 }
 
-func (s *service) Login(ctx context.Context, username, password string) (id, accessToken, refreshToken string, err error) {
+func (s *service) Login(ctx context.Context, username, password string) (id, accessToken, refreshToken string, expTime time.Time, err error) {
 	slog.Info("Logging in user: " + username)
 	user, err := s.repo.FindUserByUsername(ctx, username)
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to find user: %w", err)
+		return "", "", "", time.Time{}, fmt.Errorf("failed to find user: %w", err)
 	}
 
 	if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-		return "", "", "", ErrWrongCredentials
+		return "", "", "", time.Time{}, ErrWrongCredentials
 	}
 
 	if err = s.repo.DeleteAllUserTokens(ctx, user.ID); err != nil {
-		return "", "", "", fmt.Errorf("failed to delete all user tokens: %w", err)
+		return "", "", "", time.Time{}, fmt.Errorf("failed to delete all user tokens: %w", err)
 	}
 
-	accessToken, accessTokenID, refreshToken, err := s.jwt.Generate(user.ID)
+	accessToken, accessTokenID, refreshToken, expTime, err := s.jwt.Generate(user.ID)
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to generate tokens: %w", err)
+		return "", "", "", time.Time{}, fmt.Errorf("failed to generate tokens: %w", err)
 	}
 
 	if err = s.saveRefreshToken(ctx, user.ID, accessTokenID, []byte(refreshToken)); err != nil {
-		return "", "", "", fmt.Errorf("failed to save refresh token: %w", err)
+		return "", "", "", time.Time{}, fmt.Errorf("failed to save refresh token: %w", err)
 	}
 
-	return user.ID, accessToken, refreshToken, nil
+	return user.ID, accessToken, refreshToken, expTime, nil
 }
 
-func (s *service) RefreshTokens(ctx context.Context, refreshTokenStr string) (newAccessToken, newRefreshToken string, err error) {
+func (s *service) RefreshTokens(ctx context.Context, refreshTokenStr string) (newAccessToken, newRefreshToken string, expTime time.Time, err error) {
 	slog.Info("authenticationService.RefreshTokens")
 	refreshToken, err := s.jwt.ParseRefreshToken(refreshTokenStr)
 	if err != nil {
-		return "", "", fmt.Errorf("authenticationService.RefreshTokens: can't validate refresh token: %w", err)
+		return "", "", time.Time{}, fmt.Errorf("authenticationService.RefreshTokens: can't validate refresh token: %w", err)
 	}
 
 	writtenRefreshTokenHash, writtenAccessTokenID, err := s.repo.GetRefreshTokenInfo(ctx, refreshToken.Subject)
 	slog.Debug("authenticationService.RefreshTokens", "writtenRefreshTokenHash", writtenRefreshTokenHash, "writtenAccessTokenID", writtenAccessTokenID)
 	if err != nil {
-		return "", "", fmt.Errorf("authenticationService.RefreshTokens: can't get refresh token info: %w", err)
+		return "", "", time.Time{}, fmt.Errorf("authenticationService.RefreshTokens: can't get refresh token info: %w", err)
 	}
 
 	hashedRefreshToken := sha256.New().Sum([]byte(refreshTokenStr))
 	encodedRefreshToken := base64.RawStdEncoding.EncodeToString(hashedRefreshToken)
 	if writtenRefreshTokenHash != encodedRefreshToken {
-		return "", "", ErrTokenDoesntExist
+		return "", "", time.Time{}, ErrTokenDoesntExist
 	}
 
 	if refreshToken.AccessTokenID != writtenAccessTokenID {
 		slog.Error("wrong access token id", "writtenAccessTokenID", writtenAccessTokenID, "refreshToken.AccessTokenID", refreshToken.AccessTokenID)
-		return "", "", fmt.Errorf("wrong access token id: %w", ErrWrongTokensPair)
+		return "", "", time.Time{}, fmt.Errorf("wrong access token id: %w", ErrWrongTokensPair)
 	}
 
-	newAccessToken, newAccessTokenID, newRefreshToken, err := s.jwt.Generate(refreshToken.Subject)
+	newAccessToken, newAccessTokenID, newRefreshToken, expTime, err := s.jwt.Generate(refreshToken.Subject)
 	if err != nil {
-		return "", "", fmt.Errorf("authenticationService.RefreshTokens: can't generate new tokens: %w", err)
+		return "", "", time.Time{}, fmt.Errorf("authenticationService.RefreshTokens: can't generate new tokens: %w", err)
 	}
 
 	if err = s.repo.DeleteAllUserTokens(ctx, refreshToken.Subject); err != nil {
-		return "", "", fmt.Errorf("authenticationService.RefreshTokens: can't delete all user tokens: %w", err)
+		return "", "", time.Time{}, fmt.Errorf("authenticationService.RefreshTokens: can't delete all user tokens: %w", err)
 	}
 
 	if err = s.saveRefreshToken(ctx, refreshToken.Subject, newAccessTokenID, []byte(newRefreshToken)); err != nil {
-		return "", "", fmt.Errorf("authenticationService.RefreshTokens: can't save new refresh token: %w", err)
+		return "", "", time.Time{}, fmt.Errorf("authenticationService.RefreshTokens: can't save new refresh token: %w", err)
 	}
 
-	return newAccessToken, newRefreshToken, nil
+	return newAccessToken, newRefreshToken, expTime, nil
 }
 
 func (s *service) ValidateToken(ctx context.Context, token string) (string, error) {

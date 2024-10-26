@@ -11,7 +11,8 @@ import (
 
 type Server struct {
 	Host     string
-	Port     string
+	GRPCPort string
+	HTTPPort string
 	LogLevel string
 }
 
@@ -60,7 +61,8 @@ func New() *Config {
 	return &Config{
 		Server: Server{
 			Host:     os.Getenv("SERVER_HOST"),
-			Port:     os.Getenv("SERVER_PORT"),
+			GRPCPort: os.Getenv("SERVER_GRPC_PORT"),
+			HTTPPort: os.Getenv("SERVER_HTTP_PORT"),
 			LogLevel: os.Getenv("SERVER_LOG_LEVEL"),
 		},
 		DB: DB{
