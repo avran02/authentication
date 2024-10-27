@@ -10,6 +10,7 @@ import (
 	"github.com/avran02/authentication/internal/controller"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	swagger "github.com/swaggo/http-swagger"
 )
 
 type HTTPServer struct {
@@ -49,8 +50,18 @@ func newHTTPServer(controller controller.Controller) *HTTPServer {
 	main.Use(middleware.Logger)
 	main.Use(middleware.Recoverer)
 
+	main.Get("/docs/openapi.yml", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./docs/openapi.yml")
+	})
+	main.Get("/swagger/*", swagger.Handler(
+		swagger.URL("/docs/openapi.yml"),
+	))
+	main.Get("/docs", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/swagger/index.html", http.StatusFound)
+	})
+
 	router := s.routes()
-	main.Mount("/", router)
+	main.Mount("/api/v1", router)
 	s.router = main
 
 	return s

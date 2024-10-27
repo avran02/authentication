@@ -50,6 +50,9 @@ services:
     ports:
       # - ${SERVER_GRPC_PORT}:${SERVER_GRPC_PORT}
       - ${SERVER_HTTP_PORT}:${SERVER_HTTP_PORT}
+    volumes:
+     - ./docs/openapi.yml:/app/docs/openapi.yml
+
 
 volumes:
   mongo-test-data: 
