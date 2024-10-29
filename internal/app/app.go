@@ -46,7 +46,7 @@ func New() *App {
 	JWTGenerator := jwt.NewJwtGenerator(config.JWT)
 	service := service.New(repo, JWTGenerator)
 	controller := controller.New(service)
-	server := server.New(controller, debug)
+	server := server.New(controller, debug, config.CORS)
 
 	return &App{
 		config:     config,

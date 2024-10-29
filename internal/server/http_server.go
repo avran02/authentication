@@ -43,19 +43,15 @@ func (s *HTTPServer) Run(config config.Server) {
 	}
 }
 
-func newHTTPServer(controller controller.Controller, debug bool) *HTTPServer {
+func newHTTPServer(controller controller.Controller, debug bool, corsConfig config.CORSConfig) *HTTPServer {
 	s := &HTTPServer{
 		controller: controller,
 	}
 	corsOpts := cors.Options{
-		AllowedOrigins: []string{"*"},
-		AllowedMethods: []string{
-			http.MethodGet,
-			http.MethodPost,
-			http.MethodOptions,
-		},
-		AllowedHeaders:   []string{"*"},
-		AllowCredentials: true,
+		AllowedOrigins:   corsConfig.AllowedOrigins,
+		AllowedMethods:   corsConfig.AllowedMethods,
+		AllowedHeaders:   corsConfig.AllowedHeaders,
+		AllowCredentials: corsConfig.AllowCredentials,
 		Debug:            debug,
 	}
 

@@ -15,9 +15,9 @@ func (s *Server) Run(config config.Server) {
 	go s.GrpcServer.Run(config)
 }
 
-func New(controller controller.Controller, debug bool) *Server {
+func New(controller controller.Controller, debug bool, corsConfig config.CORSConfig) *Server {
 	return &Server{
-		HTTPServer: newHTTPServer(controller, debug),
+		HTTPServer: newHTTPServer(controller, debug, corsConfig),
 		GrpcServer: newGrpcServer(controller),
 	}
 }
