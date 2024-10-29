@@ -3,6 +3,7 @@ package logger
 import (
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/avran02/authentication/internal/config"
 )
@@ -10,7 +11,7 @@ import (
 func Setup(config config.Server) {
 	var ll slog.Leveler
 	var isDefaultLogLevel bool
-	switch config.LogLevel {
+	switch strings.ToLower(config.LogLevel) {
 	case "debug":
 		ll = slog.LevelDebug
 	case "info":

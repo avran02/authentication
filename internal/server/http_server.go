@@ -10,6 +10,7 @@ import (
 	"github.com/avran02/authentication/internal/controller"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	swagger "github.com/swaggo/http-swagger"
 )
 
@@ -42,13 +43,26 @@ func (s *HTTPServer) Run(config config.Server) {
 	}
 }
 
-func newHTTPServer(controller controller.Controller) *HTTPServer {
+func newHTTPServer(controller controller.Controller, debug bool) *HTTPServer {
 	s := &HTTPServer{
 		controller: controller,
 	}
+	corsOpts := cors.Options{
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{
+			http.MethodGet,
+			http.MethodPost,
+			http.MethodOptions,
+		},
+		AllowedHeaders:   []string{"*"},
+		AllowCredentials: true,
+		Debug:            debug,
+	}
+
 	main := chi.NewMux()
 	main.Use(middleware.Logger)
 	main.Use(middleware.Recoverer)
+	main.Use(cors.Handler(corsOpts))
 
 	main.Get("/docs/openapi.yml", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./docs/openapi.yml")

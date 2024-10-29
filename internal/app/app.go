@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/avran02/authentication/internal/config"
@@ -36,11 +37,16 @@ func New() *App {
 	config := config.New()
 	logger.Setup(config.Server)
 
+	debug := false
+	if strings.ToLower(config.Server.LogLevel) == "debug" {
+		debug = true
+	}
+
 	repo := repo.New(&config.DB)
 	JWTGenerator := jwt.NewJwtGenerator(config.JWT)
 	service := service.New(repo, JWTGenerator)
 	controller := controller.New(service)
-	server := server.New(controller)
+	server := server.New(controller, debug)
 
 	return &App{
 		config:     config,
