@@ -7,4 +7,12 @@ cors:
     - "OPTIONS"
   allowed_headers:
     - "*"
-  allow_credentials: false
+  allow_credentials: true
+
+cookie:
+  domain: "localhost"
+  http_only: true
+  secure: true
+  same_site: "lax"
+  partitioned: true
+

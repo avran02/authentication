@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/avran02/authentication/internal/config"
 	"github.com/avran02/authentication/internal/dto"
 	"github.com/avran02/authentication/internal/service"
 )
@@ -17,7 +18,8 @@ type HTTPController interface {
 }
 
 type httpController struct {
-	service service.Service
+	service      service.Service
+	cookieConfig config.CookieConfig
 }
 
 func (c *httpController) Register(w http.ResponseWriter, r *http.Request) {
@@ -124,19 +126,22 @@ func (c *httpController) Logout(w http.ResponseWriter, r *http.Request) {
 
 func (c *httpController) setRefreshTokenCookie(w http.ResponseWriter, refreshToken string, expTime time.Time) {
 	cookie := http.Cookie{
-		Name:     "refreshToken",
-		Value:    refreshToken,
-		Path:     "/",
-		Expires:  expTime,
-		HttpOnly: true,
-		// Secure:   true,
-		SameSite: http.SameSiteDefaultMode,
+		Name:        "refreshToken",
+		Value:       refreshToken,
+		Path:        "/",
+		Domain:      c.cookieConfig.Domain,
+		Expires:     expTime,
+		HttpOnly:    c.cookieConfig.HTTPOnly,
+		Secure:      c.cookieConfig.Secure,
+		SameSite:    c.cookieConfig.SameSite,
+		Partitioned: c.cookieConfig.Partitioned,
 	}
 	http.SetCookie(w, &cookie)
 }
 
-func newHTTPController(service service.Service) HTTPController {
+func newHTTPController(service service.Service, cookieConfig config.CookieConfig) HTTPController {
 	return &httpController{
-		service: service,
+		service:      service,
+		cookieConfig: cookieConfig,
 	}
 }

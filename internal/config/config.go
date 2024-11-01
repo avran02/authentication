@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/joho/godotenv"
-	"gopkg.in/yaml.v3"
 )
 
 type Server struct {
@@ -30,22 +29,12 @@ type JWT struct {
 	RefreshExp int
 }
 
-type CORSConfigFile struct {
-	CORSConfig `yaml:"cors"`
-}
-
-type CORSConfig struct {
-	AllowedOrigins   []string `yaml:"allowed_origins"`
-	AllowedMethods   []string `yaml:"allowed_methods"`
-	AllowedHeaders   []string `yaml:"allowed_headers"`
-	AllowCredentials bool     `yaml:"allow_credentials"`
-}
-
 type Config struct {
 	Server Server
 	DB     DB
 	JWT    JWT
 	CORS   CORSConfig
+	Cookie CookieConfig
 }
 
 func New() *Config {
@@ -72,17 +61,8 @@ func New() *Config {
 
 	slog.Info("env config loaded")
 
-	f, err := os.Open("config.yml")
-	if err != nil {
-		log.Fatal("can't read config.yml")
-	}
-	defer f.Close()
-	var corsConfigFile CORSConfigFile
-	if err := yaml.NewDecoder(f).Decode(&corsConfigFile); err != nil {
-		f.Close()
-		log.Fatal("can't decode config.yml")
-	}
-	slog.Info("config.yml loaded", "cors config", corsConfigFile)
+	corsConfig, cookieConfig := getYmlConfig()
+	slog.Info("config.yml loaded")
 
 	return &Config{
 		Server: Server{
@@ -102,6 +82,7 @@ func New() *Config {
 			AccessExp:  accessExp,
 			RefreshExp: refreshExp,
 		},
-		CORS: corsConfigFile.CORSConfig,
+		CORS:   corsConfig,
+		Cookie: cookieConfig,
 	}
 }

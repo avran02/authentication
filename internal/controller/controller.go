@@ -1,6 +1,9 @@
 package controller
 
-import "github.com/avran02/authentication/internal/service"
+import (
+	"github.com/avran02/authentication/internal/config"
+	"github.com/avran02/authentication/internal/service"
+)
 
 type Controller interface {
 	HTTPController
@@ -12,9 +15,9 @@ type controller struct {
 	GrpcController
 }
 
-func New(service service.Service) Controller {
+func New(service service.Service, cookieConfig config.CookieConfig) Controller {
 	return &controller{
-		HTTPController: newHTTPController(service),
+		HTTPController: newHTTPController(service, cookieConfig),
 		GrpcController: newGrpcController(service),
 	}
 }

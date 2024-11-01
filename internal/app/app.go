@@ -36,7 +36,7 @@ func (app *App) Run() {
 func New() *App {
 	config := config.New()
 	logger.Setup(config.Server)
-
+	slog.Debug("config loaded", "config", config)
 	debug := false
 	if strings.ToLower(config.Server.LogLevel) == "debug" {
 		debug = true
@@ -45,7 +45,7 @@ func New() *App {
 	repo := repo.New(&config.DB)
 	JWTGenerator := jwt.NewJwtGenerator(config.JWT)
 	service := service.New(repo, JWTGenerator)
-	controller := controller.New(service)
+	controller := controller.New(service, config.Cookie)
 	server := server.New(controller, debug, config.CORS)
 
 	return &App{
